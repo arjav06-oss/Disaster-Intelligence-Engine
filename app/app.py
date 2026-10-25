@@ -218,15 +218,18 @@ def get_model_and_vectorizer():
     Returns:
         tuple: (model, vectorizer) if files exist, else (None, None).
     """
+    global MODEL_LOAD_ERROR
     try:
         model, vectorizer = load_model(str(PROJECT_ROOT / "models"))
         return model, vectorizer
     except FileNotFoundError:
-        # Occurs if the training script hasn't been executed yet
         return None, None
-    except Exception:
-        # Handles any unexpected corruption or unpickling error
+    except Exception as error:
+        MODEL_LOAD_ERROR = str(error)
         return None, None
+
+
+MODEL_LOAD_ERROR = None
 
 
 # Why use @st.cache_data?
@@ -259,16 +262,23 @@ def show_setup_warning():
     Display setup instructions when pre-trained model files are missing.
     Educates the student or user on the prerequisite steps required to run the engine.
     """
-    st.error("⚠️ **Model not found!** You need to train the model first.")
+    if MODEL_LOAD_ERROR:
+        st.error(f"Model files were found but could not be loaded: {MODEL_LOAD_ERROR}")
+        st.markdown(
+            "Check that the deployed model files were created with compatible "
+            "Python and scikit-learn versions."
+        )
+        return
+
+    st.error("⚠️ **Model files not found!** The app needs its trained model artifacts.")
     st.markdown("""
-    ### Setup Instructions:
-    1. **Download the CrisisMMD dataset** from [crisisnlp.qcri.org](https://crisisnlp.qcri.org/crisismmd)
-    2. **Place TSV files** in the `data/raw/` directory
-    3. **Train the model** by running:
+    Add `models/disaster_model.pkl` and `models/tfidf_vectorizer.pkl` to the deployed
+    repository. To create them, place your dataset TSV files in `data/raw/` and run
+    the training script from the project root:
     ```bash
     python src/train.py
     ```
-    4. **Restart this app**
+    Commit and push the generated model files, then redeploy the app.
     """)
 
 

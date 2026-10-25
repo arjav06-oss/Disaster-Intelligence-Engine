@@ -99,7 +99,29 @@ Training combines the TSV files, preprocesses the text, makes a stratified 80/20
 - `reports/figures/` — model comparison and confusion-matrix charts
 - `reports/` — text classification reports
 
-Raw TSV/CSV files placed directly in `data/raw/`, processed CSV files, and model `.pkl` files are excluded from Git by `.gitignore`. Keep backups of anything you need; these artifacts can be regenerated from the source data and training pipeline.
+Raw TSV/CSV files placed directly in `data/raw/`, processed CSV files, and other generated model `.pkl` files are excluded from Git. The two model files listed above are exceptions: they are required at runtime and should be committed with the app so a deployment host can load them. Keep backups of anything you need; generated artifacts can be recreated by running the training pipeline.
+
+## Deploy to Streamlit Community Cloud
+
+The deployment host checks out the files in your GitHub repository; it cannot access model files that exist only on your computer. Before deploying, make sure these files are included in your commit:
+
+- `app/app.py`
+- `requirements.txt`
+- `models/disaster_model.pkl`
+- `models/tfidf_vectorizer.pkl`
+- `models/model_results.json` (for the dashboard and model-performance pages)
+
+From the repository root, add and push the app and model artifacts:
+
+```bash
+git add .gitignore README.md app/app.py requirements.txt models/disaster_model.pkl models/tfidf_vectorizer.pkl models/model_results.json
+git commit -m "Prepare app for Streamlit deployment"
+git push
+```
+
+In Streamlit Community Cloud, create or update the app using the GitHub repository and branch that contain those files. Set **Main file path** to `app/app.py`. After pushing model changes to an existing deployment, allow it to redeploy or use the app's **Reboot** action.
+
+Train and deploy with the same Python package versions when possible. Scikit-learn models saved with `joblib` may not load reliably across different scikit-learn versions. The included `requirements.txt` currently does not pin package versions.
 
 ## Project layout
 
@@ -125,7 +147,7 @@ requirements.txt            Python dependencies
 - **`pip` is not recognized:** Use `python -m pip ...` or the environment-specific Python command shown above; avoid calling `pip` directly.
 - **`python` is not recognized:** On Windows, try `py -3`. Otherwise install Python, ensure it is available to your terminal, and reopen the terminal.
 - **PowerShell says script execution is disabled:** Activation is not required. Run commands using `.\.venv\Scripts\python.exe` as shown above.
-- **The app says the model is missing:** Run the synthetic test or train on real data first. The app requires `models/disaster_model.pkl` and `models/tfidf_vectorizer.pkl`.
+- **The deployed app says the model is missing:** Confirm `models/disaster_model.pkl` and `models/tfidf_vectorizer.pkl` are committed and pushed to the deployed branch; `.gitignore` allows these two required files.
 - **Training reports no TSV files:** Check that the extracted annotation files are `.tsv` files under `data/raw/` (including its subfolders).
 - **Training reports no usable labels:** Check that a recognized label column contains `informative` and/or `not_informative` values. Other label categories are not used for this binary task.
 
