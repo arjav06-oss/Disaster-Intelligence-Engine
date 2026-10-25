@@ -1,0 +1,24 @@
+# ================================================
+# Disaster Intelligence Engine - Dependencies
+# ================================================
+# Install all packages with: python -m pip install -r requirements.txt
+#
+# Core data processing libraries
+pandas                  # Data manipulation and CSV/TSV file handling
+numpy                   # Numerical computing and array operations
+#
+# Machine Learning library
+scikit-learn            # ML models (LR, NB, SVM, RF), TF-IDF, evaluation metrics
+#
+# Visualization libraries
+matplotlib              # Base plotting library for charts and graphs
+seaborn                 # Statistical visualization (confusion matrix heatmaps)
+#
+# Web application framework
+streamlit               # Interactive web dashboard for the project demo
+#
+# Model serialization
+joblib                  # Save/load trained models and vectorizers as .pkl files
+#
+# Jupyter notebook support (for EDA exploration)
+notebook                # Jupyter notebook server for interactive analysis
