@@ -41,9 +41,8 @@ Application Structure:
 4. Session State: In-memory history tracking across web reruns.
 5. Sidebar Navigation: Multi-page router directing user between 4 pages:
    - Page 1: Home / Analyzer (live text prediction with confidence scores)
-   - Page 2: Dashboard (high-level dataset and model overview cards & charts)
-   - Page 3: Model Performance (comparison table, confusion matrices, rationale)
-   - Page 4: About (system architecture, CrisisMMD dataset info, limitations)
+   - Page 2: Model Performance (comparison table, confusion matrices, rationale)
+   - Page 3: About (system architecture, CrisisMMD dataset info, limitations)
 =============================================================================
 """
 
@@ -314,7 +313,7 @@ with st.sidebar:
     
     page = st.radio(
         "Navigate",
-        ["🏠 Home / Analyzer", "📊 Dashboard", "🔬 Model Performance", "ℹ️ About"],
+        ["🏠 Home / Analyzer", "🔬 Model Performance", "ℹ️ About"],
         label_visibility="collapsed"
     )
     
@@ -480,158 +479,7 @@ if page == "🏠 Home / Analyzer":
 
 
 # ============================================================
-# PAGE 2: DASHBOARD
-# ============================================================
-# What this page does:
-# - Serves as an executive summary dashboard showing data flow from `model_results.json`.
-# - Displays high-level Key Performance Indicators (KPIs) for the dataset:
-#   total samples, informative count, not-informative count, and train/test split.
-# - Displays best-model metrics: Accuracy, Precision, Recall, and F1 Score.
-# - Renders visual analytics:
-#   1. Bar chart comparing all evaluated models by F1 Score.
-#   2. Pie chart showing target class distribution in the dataset.
-elif page == "📊 Dashboard":
-    st.title("📊 System Dashboard")
-    st.markdown("---")
-    
-    if results is None:
-        show_setup_warning()
-        st.stop()
-
-    if st.button("Refresh dashboard data"):
-        st.rerun()
-    
-    # How Data Flows from model_results.json to the Dashboard:
-    # The JSON structure contains:
-    # {
-    #   "best_model": "linear_svm",
-    #   "dataset_stats": {"total_samples": 10000, "informative_count": 6000, ...},
-    #   "models": {
-    #       "logistic_regression": {"accuracy": 0.82, "f1": 0.81, ...},
-    #       "linear_svm": {"accuracy": 0.85, "f1": 0.84, ...}
-    #   }
-    # }
-    # We unpack these nested keys to drive the metrics and charts below.
-    best_model_name = results.get("best_model", "Unknown")
-    models_data = results.get("models", {})
-    dataset_stats = results.get("dataset_stats", {})
-    best_metrics = models_data.get(best_model_name, {})
-    training_metadata = results.get("training_metadata", {})
-    
-    # --- Dataset Stats Row ---
-    # `st.columns(4)` creates a 4-card responsive horizontal grid layout.
-    st.markdown("### 📋 Dataset Overview")
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Total Samples", f"{dataset_stats.get('total_samples', 'N/A'):,}")
-    d2.metric("Informative", f"{dataset_stats.get('informative_count', 'N/A'):,}")
-    d3.metric("Not Informative", f"{dataset_stats.get('not_informative_count', 'N/A'):,}")
-    d4.metric("Train / Test", f"{dataset_stats.get('train_size', '?')} / {dataset_stats.get('test_size', '?')}")
-
-    st.caption(
-        "Metrics below come from the saved evaluation results for the latest training run, "
-        "not from live reports. Use Refresh dashboard data after updating the results file."
-    )
-    data_files = training_metadata.get("data_files", [])
-    if training_metadata:
-        st.caption(
-            f"Training data: {training_metadata.get('data_type', 'Unknown')} · "
-            f"Last trained (UTC): {training_metadata.get('trained_at_utc', 'Unknown')}"
-        )
-        if data_files:
-            with st.expander("Show training data files"):
-                for data_file in data_files:
-                    st.write(f"- `{data_file}`")
-        if training_metadata.get("data_type") == "synthetic test data":
-            st.warning(
-                "These metrics come from synthetic test data and do not measure "
-                "performance on real disaster reports. Add real labeled data and retrain."
-            )
-    else:
-        raw_data_dir = PROJECT_ROOT / "data" / "raw"
-        synthetic_files = list(raw_data_dir.rglob("*synthetic*.tsv")) if raw_data_dir.exists() else []
-        if synthetic_files:
-            st.warning(
-                "This results file has no training-data record, and synthetic test TSV files "
-                "are present. The scores may include synthetic examples; remove them and retrain "
-                "on real labeled data to verify real-world performance."
-            )
-        else:
-            st.warning(
-                "This results file does not record when or with which files the model was trained. "
-                "Retrain with the current pipeline to add data provenance."
-            )
-    
-    st.markdown("---")
-    
-    # --- Best Model Stats Row ---
-    # Highlights the metrics of whichever model achieved the highest F1 score during training.
-    st.markdown(f"### 🏆 Best Model: {best_model_name.replace('_', ' ')}")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Accuracy", f"{best_metrics['accuracy']:.2%}" if "accuracy" in best_metrics else "N/A")
-    m2.metric("Precision", f"{best_metrics['precision']:.2%}" if "precision" in best_metrics else "N/A")
-    m3.metric("Recall", f"{best_metrics['recall']:.2%}" if "recall" in best_metrics else "N/A")
-    m4.metric("F1 Score", f"{best_metrics['f1']:.2%}" if "f1" in best_metrics else "N/A")
-    
-    st.markdown("---")
-    
-    # --- Charts ---
-    # Divides the lower section into two equal columns for visual comparison charts.
-    chart_col1, chart_col2 = st.columns(2)
-    
-    with chart_col1:
-        # Chart 1: Bar chart comparing F1 Scores across all trained algorithms.
-        # F1 score is used because it balances Precision and Recall, making it the
-        # primary metric for model selection in imbalanced classification.
-        st.markdown("### 📊 Model Comparison (F1 Score)")
-        f1_data = {name.replace('_', ' '): metrics.get('f1', 0) 
-                    for name, metrics in models_data.items()}
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
-        colors = ['#1e3a8a', '#dc2626', '#f59e0b', '#16a34a'][:len(f1_data)]
-        bars = ax.bar(f1_data.keys(), f1_data.values(), color=colors)
-        ax.set_ylabel("F1 Score")
-        ax.set_ylim(0, 1.05)
-        ax.grid(axis='y', linestyle='--', alpha=0.3)
-        # Add numerical labels on top of each bar for readability
-        for bar, val in zip(bars, f1_data.values()):
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                    f'{val:.3f}', ha='center', va='bottom', fontweight='bold')
-        plt.xticks(rotation=15, ha='right')
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-    
-    with chart_col2:
-        # Chart 2: Pie chart displaying ground truth class balance.
-        # Visualizes whether the training data was balanced or skewed towards one category.
-        st.markdown("### 📊 Class Distribution")
-        info_count = dataset_stats.get('informative_count', 0)
-        not_info_count = dataset_stats.get('not_informative_count', 0)
-        
-        if info_count > 0 or not_info_count > 0:
-            fig, ax = plt.subplots(figsize=(8, 5))
-            labels = ['Informative', 'Not Informative']
-            sizes = [info_count, not_info_count]
-            colors = ['#16a34a', '#dc2626']
-            explode = (0.05, 0.05)  # Slight separation between slices for visual clarity
-            ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
-                   startangle=90, explode=explode, 
-                   wedgeprops={'edgecolor': 'white', 'linewidth': 2})
-            ax.set_title("Dataset Label Distribution")
-            st.pyplot(fig)
-            plt.close()
-        else:
-            st.info("Dataset statistics not available.")
-
-    event_distribution = dataset_stats.get("event_distribution", {})
-    if event_distribution:
-        st.markdown("### 📍 Samples by Event")
-        event_counts = pd.Series(event_distribution, dtype="int64").sort_values(ascending=False)
-        st.bar_chart(event_counts)
-
-
-# ============================================================
-# PAGE 3: MODEL PERFORMANCE
+# PAGE 2: MODEL PERFORMANCE
 # ============================================================
 # What this page does:
 # - Provides in-depth technical evaluation intended for machine learning students,
@@ -740,7 +588,7 @@ elif page == "🔬 Model Performance":
 
 
 # ============================================================
-# PAGE 4: ABOUT
+# PAGE 3: ABOUT
 # ============================================================
 # What this page does:
 # - Serves as project documentation and viva/presentation reference for students.

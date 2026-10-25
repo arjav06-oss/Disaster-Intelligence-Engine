@@ -10,7 +10,7 @@ An educational machine-learning project that classifies disaster-related social 
 - Compares Logistic Regression, Multinomial Naive Bayes, calibrated Linear SVC, and Random Forest classifiers.
 - Selects the model with the best F1 score on a held-out test split.
 - Reports accuracy, precision, recall, F1, and confusion matrices.
-- Provides a Streamlit interface with an analyzer, dashboard, model-performance view, and project information.
+- Provides a Streamlit interface with an analyzer, model-performance view, and project information.
 
 ## Requirements
 
@@ -90,7 +90,7 @@ python src/train.py
 
 Training combines the TSV files, preprocesses the text, makes a stratified 80/20 train/test split, compares four classifiers, and saves the best model and evaluation outputs. When training finishes, start the app using the command in [Quick start](#quick-start).
 
-The dashboard reads its counts, event breakdown, and model scores from `models/model_results.json`. Each new training run records its completion time and the TSV filenames used; the dashboard warns when viewing older results without this provenance or when synthetic test data was used. Use **Refresh dashboard data** after updating the results file.
+The model-performance view reads evaluation scores from `models/model_results.json`. Each new training run records its completion time and the TSV filenames used; the app warns when viewing older results without this provenance or when synthetic test data was used.
 
 ## Generated outputs
 
@@ -111,7 +111,7 @@ The deployment host checks out the files in your GitHub repository; it cannot ac
 - `requirements.txt`
 - `models/disaster_model.pkl`
 - `models/tfidf_vectorizer.pkl`
-- `models/model_results.json` (for the dashboard and model-performance pages)
+- `models/model_results.json` (for the model-performance page)
 
 From the repository root, add and push the app and model artifacts:
 
