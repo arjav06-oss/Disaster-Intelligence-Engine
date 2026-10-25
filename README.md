@@ -90,6 +90,8 @@ python src/train.py
 
 Training combines the TSV files, preprocesses the text, makes a stratified 80/20 train/test split, compares four classifiers, and saves the best model and evaluation outputs. When training finishes, start the app using the command in [Quick start](#quick-start).
 
+The dashboard reads its counts, event breakdown, and model scores from `models/model_results.json`. Each new training run records its completion time and the TSV filenames used; the dashboard warns when viewing older results without this provenance or when synthetic test data was used. Use **Refresh dashboard data** after updating the results file.
+
 ## Generated outputs
 
 - `models/disaster_model.pkl` — selected trained classifier

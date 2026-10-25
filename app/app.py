@@ -232,10 +232,6 @@ def get_model_and_vectorizer():
 MODEL_LOAD_ERROR = None
 
 
-# Why use @st.cache_data?
-# `@st.cache_data` is used for serializable data structures (like dicts, dataframes, JSON).
-# It caches the loaded JSON dictionary so that disk I/O is not repeated on every rerun.
-@st.cache_data
 def get_results():
     """
     Load pre-calculated evaluation results from models/model_results.json.
@@ -501,6 +497,9 @@ elif page == "📊 Dashboard":
     if results is None:
         show_setup_warning()
         st.stop()
+
+    if st.button("Refresh dashboard data"):
+        st.rerun()
     
     # How Data Flows from model_results.json to the Dashboard:
     # The JSON structure contains:
@@ -517,6 +516,7 @@ elif page == "📊 Dashboard":
     models_data = results.get("models", {})
     dataset_stats = results.get("dataset_stats", {})
     best_metrics = models_data.get(best_model_name, {})
+    training_metadata = results.get("training_metadata", {})
     
     # --- Dataset Stats Row ---
     # `st.columns(4)` creates a 4-card responsive horizontal grid layout.
@@ -526,6 +526,40 @@ elif page == "📊 Dashboard":
     d2.metric("Informative", f"{dataset_stats.get('informative_count', 'N/A'):,}")
     d3.metric("Not Informative", f"{dataset_stats.get('not_informative_count', 'N/A'):,}")
     d4.metric("Train / Test", f"{dataset_stats.get('train_size', '?')} / {dataset_stats.get('test_size', '?')}")
+
+    st.caption(
+        "Metrics below come from the saved evaluation results for the latest training run, "
+        "not from live reports. Use Refresh dashboard data after updating the results file."
+    )
+    data_files = training_metadata.get("data_files", [])
+    if training_metadata:
+        st.caption(
+            f"Training data: {training_metadata.get('data_type', 'Unknown')} · "
+            f"Last trained (UTC): {training_metadata.get('trained_at_utc', 'Unknown')}"
+        )
+        if data_files:
+            with st.expander("Show training data files"):
+                for data_file in data_files:
+                    st.write(f"- `{data_file}`")
+        if training_metadata.get("data_type") == "synthetic test data":
+            st.warning(
+                "These metrics come from synthetic test data and do not measure "
+                "performance on real disaster reports. Add real labeled data and retrain."
+            )
+    else:
+        raw_data_dir = PROJECT_ROOT / "data" / "raw"
+        synthetic_files = list(raw_data_dir.rglob("*synthetic*.tsv")) if raw_data_dir.exists() else []
+        if synthetic_files:
+            st.warning(
+                "This results file has no training-data record, and synthetic test TSV files "
+                "are present. The scores may include synthetic examples; remove them and retrain "
+                "on real labeled data to verify real-world performance."
+            )
+        else:
+            st.warning(
+                "This results file does not record when or with which files the model was trained. "
+                "Retrain with the current pipeline to add data provenance."
+            )
     
     st.markdown("---")
     
@@ -533,10 +567,10 @@ elif page == "📊 Dashboard":
     # Highlights the metrics of whichever model achieved the highest F1 score during training.
     st.markdown(f"### 🏆 Best Model: {best_model_name.replace('_', ' ')}")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Accuracy", f"{best_metrics.get('accuracy', 0):.2%}")
-    m2.metric("Precision", f"{best_metrics.get('precision', 0):.2%}")
-    m3.metric("Recall", f"{best_metrics.get('recall', 0):.2%}")
-    m4.metric("F1 Score", f"{best_metrics.get('f1', 0):.2%}")
+    m1.metric("Accuracy", f"{best_metrics['accuracy']:.2%}" if "accuracy" in best_metrics else "N/A")
+    m2.metric("Precision", f"{best_metrics['precision']:.2%}" if "precision" in best_metrics else "N/A")
+    m3.metric("Recall", f"{best_metrics['recall']:.2%}" if "recall" in best_metrics else "N/A")
+    m4.metric("F1 Score", f"{best_metrics['f1']:.2%}" if "f1" in best_metrics else "N/A")
     
     st.markdown("---")
     
@@ -588,6 +622,12 @@ elif page == "📊 Dashboard":
             plt.close()
         else:
             st.info("Dataset statistics not available.")
+
+    event_distribution = dataset_stats.get("event_distribution", {})
+    if event_distribution:
+        st.markdown("### 📍 Samples by Event")
+        event_counts = pd.Series(event_distribution, dtype="int64").sort_values(ascending=False)
+        st.bar_chart(event_counts)
 
 
 # ============================================================

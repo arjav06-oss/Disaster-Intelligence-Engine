@@ -27,6 +27,7 @@ import sys
 import json
 import joblib
 import numpy as np
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Add project root to path so we can import from src
@@ -44,7 +45,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 
 # Import our custom modules
-from src.data_loader import load_dataset, save_processed_data
+from src.data_loader import find_tsv_files, load_dataset, save_processed_data
 from src.preprocessing import preprocess_dataframe, save_preprocessed_data
 from src.features import create_tfidf_features, save_vectorizer
 from src.evaluate import evaluate_model, plot_model_comparison
@@ -342,9 +343,23 @@ def main():
     
     # Save model comparison results as JSON
     # (Remove non-serializable items like classification_report text)
+    training_data_files = find_tsv_files(os.path.join(PROJECT_ROOT, 'data', 'raw'))
     json_results = {
         'best_model': best_model_name,
         'dataset_stats': dataset_stats,
+        'training_metadata': {
+            'trained_at_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            'data_type': (
+                'synthetic test data'
+                if any('synthetic' in os.path.basename(path).lower()
+                       for path in training_data_files)
+                else 'user-provided TSV data'
+            ),
+            'data_files': [
+                os.path.relpath(path, os.path.join(PROJECT_ROOT, 'data', 'raw'))
+                for path in training_data_files
+            ],
+        },
         'models': {}
     }
     
